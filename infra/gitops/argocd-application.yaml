@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: swen-infrastructure
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: swen-infrastructure
+    app.kubernetes.io/part-of: swen-gitops
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/swen-org/infrastructure.git
+    targetRevision: HEAD
+    path: infra/terraform
+    
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: swen-infrastructure
+    
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+        
+  revisionHistoryLimit: 10
+  
+  # Health checks
+  healthChecks:
+    - apiVersion: v1
+      kind: Service
+      name: swen-health-check
+      namespace: swen-infrastructure
+      
+  # Resource hooks for AI-driven changes
+  hooks:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: ai-routing-config
+      namespace: swen-infrastructure
+      data:
+        ai_enabled: "true"
+        cost_optimization: "true"
+        auto_approve_threshold: "0.1"

@@ -1,0 +1,118 @@
+# SWEN Prometheus Configuration
+# Monitoring configuration for AI routing and infrastructure
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'swen-production'
+    environment: 'production'
+
+rule_files:
+  - "swen-alerts.yml"
+  - "ai-routing-rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # AI Routing Engine metrics
+  - job_name: 'ai-routing-engine'
+    static_configs:
+      - targets: ['ai-engine:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: ai-engine:8080
+
+  # Infrastructure metrics
+  - job_name: 'aws-infrastructure'
+    static_configs:
+      - targets: ['aws-exporter:9116']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: aws-exporter:9116
+
+  - job_name: 'alibaba-infrastructure'
+    static_configs:
+      - targets: ['alibaba-exporter:9117']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: alibaba-exporter:9117
+
+  # Dashboard and telemetry
+  - job_name: 'swen-dashboard'
+    static_configs:
+      - targets: ['dashboard:3000']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+
+  # Node exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+
+  # GitOps metrics
+  - job_name: 'argocd'
+    static_configs:
+      - targets: ['argocd-server:80']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+  # Cost and billing metrics
+  - job_name: 'cost-monitoring'
+    static_configs:
+      - targets: ['cost-exporter:9118']
+    metrics_path: '/metrics'
+    scrape_interval: 300s  # 5 minutes
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: cost-exporter:9118
+
+  # Custom SWEN metrics
+  - job_name: 'swen-custom-metrics'
+    static_configs:
+      - targets: ['custom-metrics:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: custom-metrics:9090

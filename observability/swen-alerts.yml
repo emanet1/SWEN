@@ -1,0 +1,215 @@
+# SWEN Alerting Rules
+# Custom alerts for AI routing, cost optimization, and infrastructure health
+
+groups:
+  - name: swen-ai-routing
+    rules:
+      - alert: AIRoutingEngineDown
+        expr: up{job="ai-routing-engine"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: ai-routing
+        annotations:
+          summary: "AI Routing Engine is down"
+          description: "The AI routing engine has been down for more than 2 minutes. This will impact cost optimization and workload routing decisions."
+
+      - alert: AIRoutingLowConfidence
+        expr: ai_routing_confidence_score < 0.6
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-routing
+        annotations:
+          summary: "AI routing confidence is low"
+          description: "AI routing decisions have low confidence ({{ $value }}). This may indicate degraded performance or insufficient training data."
+
+      - alert: AIRoutingHighLatency
+        expr: ai_routing_decision_latency_seconds > 10
+        for: 3m
+        labels:
+          severity: warning
+          service: ai-routing
+        annotations:
+          summary: "AI routing decisions are slow"
+          description: "AI routing decisions are taking longer than expected ({{ $value }}s). This may impact real-time optimization."
+
+  - name: swen-cost-optimization
+    rules:
+      - alert: CostSpikeDetected
+        expr: increase(swen_total_cost_per_hour[1h]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: cost-optimization
+        annotations:
+          summary: "Significant cost spike detected"
+          description: "Hourly costs have increased by more than $0.10 in the last hour. Current cost: ${{ $value }}/hour"
+
+      - alert: BudgetThresholdExceeded
+        expr: swen_monthly_cost_ratio > 0.8
+        for: 1m
+        labels:
+          severity: critical
+          service: cost-optimization
+        annotations:
+          summary: "Monthly budget threshold exceeded"
+          description: "Monthly costs have exceeded 80% of budget. Current ratio: {{ $value }}"
+
+      - alert: CostOptimizationIneffective
+        expr: swen_cost_savings_percentage < 0.05
+        for: 30m
+        labels:
+          severity: warning
+          service: cost-optimization
+        annotations:
+          summary: "Cost optimization is not effective"
+          description: "Cost savings are below 5%. Current savings: {{ $value }}%"
+
+      - alert: SpotInstanceAvailabilityLow
+        expr: swen_spot_instance_availability < 0.3
+        for: 10m
+        labels:
+          severity: warning
+          service: cost-optimization
+        annotations:
+          summary: "Spot instance availability is low"
+          description: "Spot instance availability is below 30%. Current availability: {{ $value }}"
+
+  - name: swen-infrastructure
+    rules:
+      - alert: HighCPUUtilization
+        expr: cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High CPU utilization detected"
+          description: "CPU utilization is above 80% for {{ $labels.instance }}. Current usage: {{ $value }}%"
+
+      - alert: HighMemoryUtilization
+        expr: memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High memory utilization detected"
+          description: "Memory utilization is above 85% for {{ $labels.instance }}. Current usage: {{ $value }}%"
+
+      - alert: DiskSpaceLow
+        expr: disk_usage_percent > 90
+        for: 2m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Disk space is critically low"
+          description: "Disk usage is above 90% for {{ $labels.instance }}. Current usage: {{ $value }}%"
+
+      - alert: NetworkLatencyHigh
+        expr: network_latency_ms > 200
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Network latency is high"
+          description: "Network latency is above 200ms for {{ $labels.instance }}. Current latency: {{ $value }}ms"
+
+  - name: swen-gitops
+    rules:
+      - alert: GitOpsSyncFailed
+        expr: argocd_app_sync_status != 1
+        for: 5m
+        labels:
+          severity: critical
+          service: gitops
+        annotations:
+          summary: "GitOps sync failed"
+          description: "GitOps application sync has failed for {{ $labels.name }}. Status: {{ $labels.sync_status }}"
+
+      - alert: GitOpsOutOfSync
+        expr: argocd_app_health_status != 1
+        for: 10m
+        labels:
+          severity: warning
+          service: gitops
+        annotations:
+          summary: "GitOps application is out of sync"
+          description: "GitOps application {{ $labels.name }} is out of sync. Health status: {{ $labels.health_status }}"
+
+      - alert: TerraformApplyFailed
+        expr: terraform_apply_status != 1
+        for: 2m
+        labels:
+          severity: critical
+          service: gitops
+        annotations:
+          summary: "Terraform apply failed"
+          description: "Terraform apply has failed for {{ $labels.workspace }}. This may impact infrastructure deployment."
+
+  - name: swen-observability
+    rules:
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: observability
+        annotations:
+          summary: "Prometheus target is down"
+          description: "Prometheus target {{ $labels.instance }} is down. Job: {{ $labels.job }}"
+
+      - alert: GrafanaDashboardUnavailable
+        expr: grafana_dashboard_availability < 0.95
+        for: 5m
+        labels:
+          severity: warning
+          service: observability
+        annotations:
+          summary: "Grafana dashboard availability is low"
+          description: "Grafana dashboard availability is below 95%. Current availability: {{ $value }}"
+
+      - alert: TelemetryDataStale
+        expr: time() - swen_telemetry_last_update_timestamp > 300
+        for: 1m
+        labels:
+          severity: warning
+          service: observability
+        annotations:
+          summary: "Telemetry data is stale"
+          description: "Telemetry data has not been updated for more than 5 minutes. Last update: {{ $value }}"
+
+  - name: swen-business-metrics
+    rules:
+      - alert: WorkloadRoutingEfficiencyLow
+        expr: swen_workload_routing_efficiency < 0.7
+        for: 15m
+        labels:
+          severity: warning
+          service: business-metrics
+        annotations:
+          summary: "Workload routing efficiency is low"
+          description: "Workload routing efficiency is below 70%. Current efficiency: {{ $value }}"
+
+      - alert: AIRecommendationRejectionRateHigh
+        expr: swen_ai_recommendation_rejection_rate > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          service: business-metrics
+        annotations:
+          summary: "AI recommendation rejection rate is high"
+          description: "AI recommendation rejection rate is above 30%. Current rate: {{ $value }}"
+
+      - alert: CostSavingsBelowTarget
+        expr: swen_monthly_cost_savings_percentage < 0.15
+        for: 1h
+        labels:
+          severity: warning
+          service: business-metrics
+        annotations:
+          summary: "Cost savings below target"
+          description: "Monthly cost savings are below 15%. Current savings: {{ $value }}%"

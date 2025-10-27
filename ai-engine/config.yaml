@@ -1,0 +1,167 @@
+# SWEN AI Routing Engine Configuration
+
+# Cloud Provider Configuration
+providers:
+  aws:
+    regions:
+      - us-west-2
+      - us-east-1
+      - eu-west-1
+    base_cost: 0.05
+    latency_base: 50
+    instance_types:
+      - t3.medium
+      - t3.large
+      - m5.large
+      - c5.large
+    spot_available: true
+    
+  alibaba:
+    regions:
+      - us-west-1
+      - ap-southeast-1
+      - eu-central-1
+    base_cost: 0.03
+    latency_base: 60
+    instance_types:
+      - ecs.t5-lc1m2.small
+      - ecs.t5-lc1m2.medium
+      - ecs.c5.large
+      - ecs.m5.large
+    spot_available: true
+
+# Machine Learning Configuration
+ml_model:
+  retrain_interval_hours: 24
+  features:
+    - cost
+    - latency
+    - cpu_utilization
+    - memory_utilization
+    - reliability_score
+    - credits_available
+  algorithm: "random_forest"
+  hyperparameters:
+    n_estimators: 100
+    max_depth: 10
+    random_state: 42
+
+# Routing Algorithm Configuration
+routing:
+  algorithm: "balanced"  # balanced, cost_optimized, latency_optimized
+  cost_weight: 0.4
+  latency_weight: 0.3
+  reliability_weight: 0.3
+  
+  # Cost optimization settings
+  cost_optimization:
+    enabled: true
+    budget_limit_usd: 1000
+    alert_threshold_percent: 80
+    auto_scale_down: true
+    
+  # Latency optimization settings
+  latency_optimization:
+    max_latency_ms: 200
+    preferred_regions:
+      - us-west-2
+      - us-east-1
+
+# Telemetry Collection
+telemetry:
+  collection_interval_seconds: 60
+  retention_hours: 168  # 7 days
+  providers:
+    aws:
+      metrics:
+        - CPUUtilization
+        - NetworkIn
+        - NetworkOut
+        - DiskReadOps
+        - DiskWriteOps
+    alibaba:
+      metrics:
+        - CPUUtilization
+        - NetworkIn
+        - NetworkOut
+        - DiskReadOps
+        - DiskWriteOps
+
+# GitOps Integration
+gitops:
+  enabled: true
+  repository: "https://github.com/swen-org/infrastructure"
+  branch: "ai-recommendations"
+  auto_commit: true
+  approval_required: true
+  
+  # Terraform integration
+  terraform:
+    workspace: "ai-optimized"
+    variables_file: "ai-variables.tfvars"
+    plan_timeout_minutes: 10
+    apply_timeout_minutes: 30
+
+# Monitoring and Alerting
+monitoring:
+  prometheus:
+    enabled: true
+    endpoint: "http://localhost:9090"
+    metrics_path: "/metrics"
+    
+  grafana:
+    enabled: true
+    endpoint: "http://localhost:3000"
+    dashboard_id: "swen-ai-routing"
+    
+  alerts:
+    high_cost_threshold: 0.8
+    low_confidence_threshold: 0.6
+    latency_spike_threshold: 2.0
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8080
+  debug: false
+  
+  # Rate limiting
+  rate_limit:
+    requests_per_minute: 100
+    burst_size: 20
+    
+  # Authentication (if needed)
+  auth:
+    enabled: false
+    token_secret: "swen-ai-routing-secret"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"
+  file: "/var/log/swen-ai-engine.log"
+  max_size_mb: 100
+  backup_count: 5
+  
+  # Structured logging
+  structured: true
+  include_trace_id: true
+
+# Performance Tuning
+performance:
+  # Async processing
+  max_concurrent_requests: 50
+  request_timeout_seconds: 30
+  
+  # Caching
+  cache:
+    enabled: true
+    ttl_seconds: 300
+    max_size_mb: 100
+    
+  # Database (if using persistent storage)
+  database:
+    type: "sqlite"  # sqlite, postgresql, mysql
+    connection_string: "sqlite:///swen_ai_engine.db"
+    pool_size: 10
+    max_overflow: 20

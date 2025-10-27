@@ -1,0 +1,222 @@
+# SWEN GitOps Pipeline
+# Automated infrastructure deployment with AI-driven optimization
+
+stages:
+  - validate
+  - plan
+  - security-scan
+  - ai-optimization
+  - apply
+  - monitor
+
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}/infra/terraform
+  TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/default
+  TF_VAR_environment: ${CI_ENVIRONMENT_NAME}
+  TF_VAR_gitops_repository: ${CI_REPOSITORY_URL}
+  TF_VAR_gitops_branch: ${CI_COMMIT_REF_NAME}
+
+# Cache Terraform state and dependencies
+cache:
+  paths:
+    - ${TF_ROOT}/.terraform
+    - ${TF_ROOT}/.terraform.lock.hcl
+
+# Validate Terraform configuration
+validate:
+  stage: validate
+  image: hashicorp/terraform:1.5.0
+  script:
+    - cd ${TF_ROOT}
+    - terraform init -backend=false
+    - terraform validate
+    - terraform fmt -check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Security scanning
+security_scan:
+  stage: security-scan
+  image: bridgecrew/checkov:latest
+  script:
+    - cd ${TF_ROOT}
+    - checkov -d . --framework terraform --output cli --output junitxml --output-file-path checkov-report.xml
+  artifacts:
+    reports:
+      junit: checkov-report.xml
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# AI-driven optimization analysis
+ai_optimization:
+  stage: ai-optimization
+  image: python:3.9-slim
+  before_script:
+    - pip install -r ai-engine/requirements.txt
+  script:
+    - cd ai-engine
+    - python -c "
+        import yaml
+        import json
+        from main import AIRoutingEngine
+        
+        # Initialize AI engine
+        engine = AIRoutingEngine()
+        
+        # Analyze current configuration
+        analysis = engine.analyze_current_configuration()
+        
+        # Generate optimization recommendations
+        recommendations = engine.generate_optimization_recommendations()
+        
+        # Save recommendations for review
+        with open('ai-recommendations.json', 'w') as f:
+            json.dump(recommendations, f, indent=2)
+            
+        # Check if changes are significant enough to require approval
+        if recommendations['confidence_score'] > 0.8 and recommendations['cost_impact'] < 0.1:
+            echo 'AI recommendation approved automatically'
+            # Generate new Terraform variables
+            engine.generate_terraform_variables(recommendations)
+        else:
+            echo 'AI recommendation requires manual review'
+            exit 1
+      "
+  artifacts:
+    reports:
+      junit: ai-recommendations.json
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# Terraform plan
+plan:
+  stage: plan
+  image: hashicorp/terraform:1.5.0
+  dependencies:
+    - validate
+    - ai_optimization
+  script:
+    - cd ${TF_ROOT}
+    - terraform init
+    - terraform plan -out=tfplan
+    - terraform show -json tfplan > plan.json
+  artifacts:
+    paths:
+      - ${TF_ROOT}/tfplan
+      - ${TF_ROOT}/plan.json
+    reports:
+      terraform: ${TF_ROOT}/plan.json
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Manual approval for high-impact changes
+manual_approval:
+  stage: plan
+  script:
+    - echo "Manual approval required for high-impact changes"
+    - echo "Please review the AI recommendations and approve if acceptable"
+  when: manual
+  allow_failure: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+
+# Apply Terraform changes
+apply:
+  stage: apply
+  image: hashicorp/terraform:1.5.0
+  dependencies:
+    - plan
+  script:
+    - cd ${TF_ROOT}
+    - terraform init
+    - terraform apply -auto-approve tfplan
+    - terraform output -json > outputs.json
+  artifacts:
+    paths:
+      - ${TF_ROOT}/outputs.json
+  environment:
+    name: production
+    action: start
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+# Post-deployment monitoring
+monitor:
+  stage: monitor
+  image: curlimages/curl:latest
+  script:
+    - |
+      # Wait for infrastructure to be ready
+      sleep 60
+      
+      # Check health endpoints
+      curl -f http://${TF_VAR_aws_region}.swen-dashboard.com/health || exit 1
+      curl -f http://${TF_VAR_alibaba_region}.swen-dashboard.com/health || exit 1
+      
+      # Verify AI routing engine is working
+      curl -f http://ai-engine.swen.com/health || exit 1
+      
+      # Send deployment notification
+      curl -X POST "${WEBHOOK_URL}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "text": "SWEN Infrastructure deployed successfully",
+          "attachments": [{
+            "color": "good",
+            "fields": [
+              {"title": "Environment", "value": "${CI_ENVIRONMENT_NAME}", "short": true},
+              {"title": "Commit", "value": "${CI_COMMIT_SHA}", "short": true},
+              {"title": "AI Optimizations", "value": "Applied", "short": true}
+            ]
+          }]
+        }'
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+# Rollback job for failed deployments
+rollback:
+  stage: apply
+  image: hashicorp/terraform:1.5.0
+  script:
+    - cd ${TF_ROOT}
+    - terraform init
+    - terraform apply -auto-approve -target=aws_instance.backup
+  when: on_failure
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_failure
+
+# Cost analysis and reporting
+cost_analysis:
+  stage: monitor
+  image: python:3.9-slim
+  script:
+    - pip install boto3 alibabacloud-ecs20140526
+    - python -c "
+        import boto3
+        import json
+        from datetime import datetime, timedelta
+        
+        # Analyze AWS costs
+        ce = boto3.client('ce')
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        response = ce.get_cost_and_usage(
+            TimePeriod={'Start': start_date, 'End': end_date},
+            Granularity='MONTHLY',
+            Metrics=['BlendedCost']
+        )
+        
+        print('Cost analysis completed')
+        print(json.dumps(response, indent=2))
+      "
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
