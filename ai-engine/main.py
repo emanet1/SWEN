@@ -158,7 +158,7 @@ class AIRoutingEngine:
         return {
             'providers': {
                 'aws': {
-                    'regions': ['us-west-2', 'us-east-1'],
+                    'regions': ['us-east-1', 'us-west-2'],
                     'base_cost': 0.05,
                     'latency_base': 50
                 },
@@ -523,7 +523,7 @@ class AIRoutingEngine:
             import boto3
             
             # Initialize EC2 client
-            ec2_client = boto3.client('ec2', region_name='us-west-2')
+            ec2_client = boto3.client('ec2', region_name='us-east-1')
             
             # Get running instances
             response = ec2_client.describe_instances(
@@ -644,7 +644,7 @@ class AIRoutingEngine:
             import boto3
             
             # Initialize EC2 client
-            ec2_client = boto3.client('ec2', region_name='us-west-2')
+            ec2_client = boto3.client('ec2', region_name='us-east-1')
             
             # Get running instances
             response = ec2_client.describe_instances(
@@ -676,7 +676,7 @@ class AIRoutingEngine:
             memory_utilization = min(0.9, total_memory * 0.05) if instance_count > 0 else 0
             
             # Get real latency using ping test
-            latency_ms = await self._ping_test_latency('us-west-2.amazonaws.com')
+            latency_ms = await self._ping_test_latency('us-east-1.amazonaws.com')
             
             return {
                 'instance_count': instance_count,
@@ -894,7 +894,7 @@ class AIRoutingEngine:
         """Get default provider states when no telemetry data is available"""
         return {
             'aws': {
-                'region': 'us-west-2',
+                'region': 'us-east-1',
                 'cost_per_hour': self.aws_simulated_cost,
                 'latency_ms': 50,
                 'cpu_utilization': 0.5,
@@ -1138,7 +1138,7 @@ class AIRoutingEngine:
             if os.getenv('AWS_ACCESS_KEY_ID'):
                 env['AWS_ACCESS_KEY_ID'] = os.getenv('AWS_ACCESS_KEY_ID')
                 env['AWS_SECRET_ACCESS_KEY'] = os.getenv('AWS_SECRET_ACCESS_KEY')
-                env['AWS_DEFAULT_REGION'] = os.getenv('AWS_DEFAULT_REGION', 'us-west-2')
+                env['AWS_DEFAULT_REGION'] = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
                 logger.info("Added AWS credentials to Terraform environment")
             
             # Add SSH public key to environment
@@ -2140,7 +2140,7 @@ class AIRoutingEngine:
                         'aws': {
                             'cost_per_hour': self.aws_simulated_cost,
                             'latency_ms': 50,
-                            'region': 'us-west-2',
+                            'region': 'us-east-1',
                             'cpu_utilization': 0.5,
                             'memory_utilization': 0.6,
                             'available_instances': 10,

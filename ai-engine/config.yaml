@@ -4,7 +4,7 @@
 providers:
   aws:
     regions:
-      - us-west-2
+      - us-east-1
       - us-east-1
       - eu-west-1
     base_cost: 0.05
@@ -64,7 +64,7 @@ routing:
   latency_optimization:
     max_latency_ms: 200
     preferred_regions:
-      - us-west-2
+      - us-east-1
       - us-east-1
 
 # Telemetry Collection

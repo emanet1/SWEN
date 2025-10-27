@@ -37,7 +37,7 @@ function generateTelemetryData(): TelemetryData {
   
   // Generate realistic provider data with some randomness
   const awsData: ProviderData = {
-    region: 'us-west-2',
+    region: 'us-east-1',
     cost_per_hour: 0.05 + Math.random() * 0.02,
     latency_ms: 50 + Math.random() * 20,
     cpu_utilization: 0.3 + Math.random() * 0.4,
